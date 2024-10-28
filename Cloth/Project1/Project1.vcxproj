@@ -136,14 +136,10 @@
     <ClCompile Include="..\..\glad\src\glad.c" />
     <ClCompile Include="Cloth.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Mesh.cpp" />
-    <ClCompile Include="parser.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h" />
     <ClInclude Include="Cloth.h" />
-    <ClInclude Include="Mesh.h" />
-    <ClInclude Include="parser.h" />
     <ClInclude Include="shader.h" />
   </ItemGroup>
   <ItemGroup>

@@ -3,10 +3,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include "parser.h"
 #include "shader.h"
 #include "camera.h"
-#include "Mesh.h"
 #include "Cloth.h"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -32,7 +30,6 @@ float lastFrame = 0.0f;
 
 // lighting
 vec3 lightPos(5.0f, 4.0f, 6.0f);
-OBJParser parser;
 bool isDragging = false;
 Cloth c(vec3(0.0, -9.8 , 0));
 
@@ -81,14 +78,6 @@ int main()
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE); // enabled by default on some drivers, but not all so always enable to make sure
 
-    //load obj files
-    parser.loadOBJ("../../models/bunny.obj");
-    printf("%d\n", parser.vertices.size());
-    printf("%d\n", parser.normals.size());
-    printf("%d\n", parser.faces.size());
-
-    //Mesh mesh(parser);
-    //printf("%d\n", mesh.vertices.size());
     // build and compile our shader 
     // ------------------------------------
     Shader lightingShader("shader/vertex_shader_Phong.glsl", "shader/fragment_shader_Phong.glsl");
