@@ -7,6 +7,19 @@
 #include "camera.h"
 #include "Cloth.h"
 
+#define IMGUI_DEFINE_MATH_OPERATORS
+#include "imgui.h"
+#include "imgui.cpp"
+#include "imgui_draw.cpp"
+#include "imgui_widgets.cpp"
+#include "imgui_tables.cpp"
+#include "imgui_demo.cpp"
+
+#include "backends/imgui_impl_opengl3.h"
+#include "backends/imgui_impl_opengl3.cpp"
+#include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_glfw.cpp"
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -31,7 +44,7 @@ float lastFrame = 0.0f;
 // lighting
 vec3 lightPos(5.0f, 4.0f, 6.0f);
 bool isDragging = false;
-Cloth c(vec3(0.0, -9.8 , 0));
+Cloth c(vec3(0.0, 0 , 0));
 
 int main()
 {
@@ -72,6 +85,15 @@ int main()
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
+
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330"); 
 
     // configure global opengl state
     // -----------------------------
@@ -123,7 +145,27 @@ int main()
        /* double xpos, ypos;
         glfwGetCursorPos(window, &xpos, &ypos);
         std::cout << "Cursor position: " << xpos << ", " << ypos << std::endl;*/
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
 
+        ImGui::Begin("Cloth Parameters");
+        ImGui::SliderFloat("Stretch", &c.stretchCompliance, 0, 0.1f);
+        ImGui::SliderFloat("Bend", &c.bendCompliance, 0, 0.01f);
+        if (ImGui::Button("Wind")) {
+            c.f_external.x = -5.0f;
+        }
+        if (ImGui::Button("gravity")) {
+            c.f_external.y = -9.8f;
+        }
+        if (ImGui::Button("reset")) {
+            c.f_external = vec3(0,0,0);
+        }
+        
+        ImGui::End();
+
+        // Rendering
+        ImGui::Render();
 
         glClearColor(0.529f, 0.808f, 0.922f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -155,6 +197,7 @@ int main()
         c.draw();
         c.update(deltaTime);
       
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -165,6 +208,13 @@ int main()
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
     glfwTerminate();
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+    glfwDestroyWindow(window);
+    glfwTerminate();
+
     return 0;
 }
 
@@ -197,7 +247,7 @@ void processInput(GLFWwindow* window)
         camera.ProcessKeyboardRotation(ARROW_DOWN, deltaTime);
 
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
-        c.f_external = vec3(0, 0, 0);
+        c.f_external.x = 0.0f;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -234,12 +284,14 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
         glReadPixels(static_cast<int>(mouseX), static_cast<int>(SCR_HEIGHT - mouseY), 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
         double x, y, z;
         vec3 Pos = unProject(static_cast<int>(mouseX), static_cast<int>(mouseY), depth);
-        c.f_external.x = std::min(xoffset,2.0f);
-        /*if (length(Pos - soft->s.center) < soft->s.radius)
+        //c.f_external.x = std::min(xoffset,2.0f);
+        if (c.grabIndex != -1)
         {
-            soft->drag(Pos);
-        }*/
-
+            c.particles[c.grabIndex].x = Pos;
+            c.particles[c.grabIndex].p = Pos;
+        }
+        else
+            c.grab(Pos);
     }
     
     
@@ -256,7 +308,14 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
         }
     }
     else if (action == GLFW_RELEASE)
+    {
         isDragging = false;
+        if (c.grabIndex != -1)
+        {
+            c.particles[c.grabIndex].inverseMass = c.grabPointInvereMass;
+            c.grabIndex = -1;
+        }
+    }
 }
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
 // ----------------------------------------------------------------------

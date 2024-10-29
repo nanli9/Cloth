@@ -2,12 +2,14 @@
 
 Cloth::Cloth(vec3 f_external)
 {
-	width = 40;
-	height = 40;
+	width = 30;
+	height = 50;
 	this->f_external = f_external;
 	substep = 5;
 	neighbors.resize((width - 1) * (height - 1) * 2);
-
+	stretchCompliance = 0.001f;
+	bendCompliance = 0.001f;
+	grabIndex = -1;
 	for (int j = 0; j < height; j++)
 	{
 		for (int i = 0; i < width; i++)
@@ -16,7 +18,7 @@ Cloth::Cloth(vec3 f_external)
 			p.inverseMass = 0.0f;
 			/*if (j == height - 1 && (i == 0 || i == width - 1))
 				p.inverseMass = 0;*/
-			p.p = vec3(0.2 * i, 0.2 * j, 0);
+			p.p = vec3(0.1 * i, 0.1 * j, 0);
 			p.x = p.p;
 			p.v = vec3(0, 0, 0);
 			particles.push_back(p);
@@ -228,11 +230,8 @@ void Cloth::preSolve(float dt)
 		index++;
 		if (p.inverseMass == 0)
 			continue;
-		//p.v += dt * f_external;
 		p.p = p.x;
 		p.x += p.v * dt + p.inverseMass * dt * dt * f_external * 0.1f;
-		
-		//p.v *= 0.5;
 	}
 }
 
@@ -253,12 +252,10 @@ void Cloth::solveEdges(float dt)
 		float w2 = particles[e.indices[1]].inverseMass;
 		float w = w1 + w2;
 		float C = length(gradient) - e.resLen;
-		float s = -C / (w + 0.001 / dt / dt);
+		float s = -C / (w + stretchCompliance / dt / dt);
 		gradient = normalize(gradient);
-		//if(!particles[e.indices[0]].pinned)
-			particles[e.indices[0]].x -= s * w1 * gradient;
-		//if (!particles[e.indices[1]].pinned)
-			particles[e.indices[1]].x += s * w2 * gradient;
+		particles[e.indices[0]].x -= s * w1 * gradient;
+		particles[e.indices[1]].x += s * w2 * gradient;
 
 	}
 }
@@ -278,7 +275,7 @@ void Cloth::solveBending(float dt)
 			float w2 = particles[neighbors[i][j].bendEdge[1]].inverseMass;
 			float w = w1 + w2;
 			float C = length(gradient) - neighbors[i][j].resLen;
-			float s = -C / (w + 0.01 /dt/dt);
+			float s = -C / (w + bendCompliance /dt/dt);
 			gradient = normalize(gradient);
 			particles[neighbors[i][j].bendEdge[0]].x -= s * w1 * gradient;
 			particles[neighbors[i][j].bendEdge[1]].x += s * w2 * gradient;
@@ -293,11 +290,9 @@ void Cloth::postSolve(float dt)
 {
 	for (auto& p : particles)
 	{
-		//if(!p.pinned)
-			p.v = (p.x - p.p) / dt;
-			if (length(p.v) > 10.0f)
-				p.v = normalize(p.v) * 10.0f;
-			//p.v *= 0.99;
+		p.v = (p.x - p.p) / dt;
+		if (length(p.v) > 10.0f)
+			p.v = normalize(p.v) * 10.0f;
 	}
 }
 
@@ -350,4 +345,28 @@ void Cloth::draw()
 
 	glBindVertexArray(0);
 
+}
+#include <iostream>
+void Cloth::grab(vec3 pos)
+{
+	float d = 0.1;
+	int index = -1;
+	for (int i = 0; i < particles.size(); i++)
+	{
+		float d_new = length(particles[i].x - pos);
+		if (d_new < d)
+		{
+			d = d_new;
+			index = i;
+		}
+
+	}
+	grabIndex = index;
+	if (grabIndex != -1)
+	{
+		//cout << pos.x << " " << pos.y << endl;
+		cout << grabIndex << endl;
+		grabPointInvereMass = particles[grabIndex].inverseMass;
+		particles[grabIndex].inverseMass = 0.0f;
+	}
 }

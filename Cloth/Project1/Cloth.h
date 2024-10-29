@@ -53,10 +53,14 @@ public:
 	vector<particle> particles;
 	vector<triangle> triangles;
 	vector<vector<neighbor>> neighbors;
+	float bendCompliance;
+	float stretchCompliance;
 	set<edge> edges;
 	int height, width;
 	vec3 f_external;
 	int substep;
+	int grabIndex;
+	int grabPointInvereMass;
 	Cloth(vec3 f_external);
 	void preSolve(float dt);
 	void solve(float dt);
@@ -67,6 +71,7 @@ public:
 	void draw();
 	void addEdge(triangle t);
 	float calculatePhi(edge e,int triangleIndex);
+	void grab(vec3 pos);
 };
 
 

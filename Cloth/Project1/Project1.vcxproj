@@ -73,7 +73,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LibraryPath>..\..\tetgen1.6.0\tetgen1.6.0\out\build\x64-Debug;..\..\glfw-3.4.bin.WIN64\lib-vc2022;$(LibraryPath)</LibraryPath>
-    <IncludePath>..\..\tetgen1.6.0\tetgen1.6.0;..\..\glm-1.0.1\glm-1.0.1;..\..\glad\include;..\..\glfw-3.4.bin.WIN64\include;$(IncludePath)</IncludePath>
+    <IncludePath>..\..\imgui-1.91.4\imgui-1.91.4;..\..\tetgen1.6.0\tetgen1.6.0;..\..\glm-1.0.1\glm-1.0.1;..\..\glad\include;..\..\glfw-3.4.bin.WIN64\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
