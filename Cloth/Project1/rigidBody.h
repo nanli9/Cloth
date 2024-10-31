@@ -14,16 +14,27 @@
 
 using namespace glm;
 using namespace std;
-
-class RigidBody
+struct Y
 {
-public:
 	vec3 x;
 	mat3 R;
 	vec3 P;
 	vec3 L;
 
 	mat3 I_0;
+	mat3 I;
+	mat3 I_inverse;
+
+	vec3 omega;
+
+	vec3 force;
+	vec3 torque;
+};
+
+class RigidBody
+{
+public:
+	Y y_t;
 	float mass;
 	unsigned int VBO, cubeVAO;
 	vector<vec3> vertices;

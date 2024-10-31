@@ -77,6 +77,8 @@ public:
 	float calculatePhi(edge e,int triangleIndex);
 	void grab(vec3 pos);
 	void handleCollision(vec3& p,vector<RigidBody>& rigidBodies);
+private:
+	GLuint VAO, VBO, EBO;
 };
 
 

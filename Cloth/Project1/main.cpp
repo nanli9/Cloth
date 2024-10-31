@@ -207,7 +207,7 @@ int main()
         model = translate(model, vec3(0, 0, 0));
         lightingShader.setMat4("model", model);
 
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glLineWidth(2);
         c.draw();
         c.update(deltaTime, rigidBodies);

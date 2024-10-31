@@ -2,7 +2,7 @@
 
 Cloth::Cloth(vec3 f_external)
 {
-	width = 30;
+	width = 50;
 	height = 50;
 	this->f_external = f_external;
 	substep = 5;
@@ -47,8 +47,8 @@ Cloth::Cloth(vec3 f_external)
 
 
 			t2.indices[0] = j * width + i + 1;
-			t2.indices[1] = j * width + i + width;
-			t2.indices[2] = j * width + i + width + 1;
+			t2.indices[1] = j * width + i + width + 1;
+			t2.indices[2] = j * width + i + width;
 			t2.triangleIndex = triangles.size();
 			triangles.push_back(t2);
 			p1 = particles[t2.indices[0]].x;
@@ -347,13 +347,13 @@ void Cloth::update(float dt, vector<RigidBody>& rigidBodies)
 }
 void Cloth::draw()
 {
-	int n = particles.size() * 3;
+	int n = particles.size() * 6;
 	float* vertices = new float[n];
 	for (int i = 0; i < particles.size(); i++)
 	{
-		vertices[3 * i] = particles[i].x.x;
-		vertices[3 * i + 1] = particles[i].x.y;
-		vertices[3 * i + 2] = particles[i].x.z;
+		vertices[6 * i] = particles[i].x.x;
+		vertices[6 * i + 1] = particles[i].x.y;
+		vertices[6 * i + 2] = particles[i].x.z;
 	}
 	int* indices = new int[triangles.size() * 3];
 	for (int i = 0; i < triangles.size(); i++)
@@ -361,22 +361,39 @@ void Cloth::draw()
 		indices[3 * i] = triangles[i].indices[0];
 		indices[3 * i + 1] = triangles[i].indices[1];
 		indices[3 * i + 2] = triangles[i].indices[2];
+		vec3 v1 = particles[indices[3 * i]].x - particles[indices[3 * i + 1]].x;
+		vec3 v2 = particles[indices[3 * i]].x - particles[indices[3 * i + 2]].x;
+		vec3 n = normalize(cross(v2, v1));
+
+		vertices[6 * indices[3 * i] + 3] = n.x;
+		vertices[6 * indices[3 * i] + 4] = n.y;
+		vertices[6 * indices[3 * i] + 5] = n.z;
+
+		vertices[6 * indices[3 * i + 1] + 3] = n.x;
+		vertices[6 * indices[3 * i + 1] + 4] = n.y;
+		vertices[6 * indices[3 * i + 1] + 5] = n.z;
+
+		vertices[6 * indices[3 * i + 2] + 3] = n.x;
+		vertices[6 * indices[3 * i + 2] + 4] = n.y;
+		vertices[6 * indices[3 * i + 2] + 5] = n.z;
 	}
 
-	GLuint VAO, VBO, EBO;
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
+	
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
 
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * n, vertices, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * n, vertices, GL_DYNAMIC_DRAW);
 
 	glGenBuffers(1, &EBO);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int) * triangles.size() * 3, indices, GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int) * triangles.size() * 3, indices, GL_DYNAMIC_DRAW);
 
 	
 	glDrawElements(GL_TRIANGLES, triangles.size() * 3, GL_UNSIGNED_INT, 0);
