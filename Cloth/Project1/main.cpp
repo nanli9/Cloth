@@ -6,6 +6,7 @@
 #include "shader.h"
 #include "camera.h"
 #include "Cloth.h"
+#include "rigidBody.h"
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui.h"
@@ -32,7 +33,7 @@ const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
 // camera
-Camera camera(glm::vec3(0.0f, 3.0f, 15.0f));
+Camera camera(glm::vec3(1.0f, 4.0f, 12.0f));
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
@@ -42,10 +43,11 @@ float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
 // lighting
-vec3 lightPos(5.0f, 4.0f, 6.0f);
+vec3 lightPos(5.0f, 8.0f, 6.0f);
 bool isDragging = false;
+bool isDraggingCamera = false;
 Cloth c(vec3(0.0, 0 , 0));
-
+vector<RigidBody> rigidBodies;
 int main()
 {
 #ifdef __APPLE__
@@ -150,24 +152,30 @@ int main()
         ImGui::NewFrame();
 
         ImGui::Begin("Cloth Parameters");
-        ImGui::SliderFloat("Stretch", &c.stretchCompliance, 0, 0.1f);
+        ImGui::SliderFloat("Stretch", &c.stretchCompliance, 0, 0.05f);
         ImGui::SliderFloat("Bend", &c.bendCompliance, 0, 0.01f);
+        ImGui::SliderFloat("K_damping", &c.k_damping, 0.0, 1.0f);
         if (ImGui::Button("Wind")) {
             c.f_external.x = -5.0f;
+            c.f_external.z = -3.0f;
         }
         if (ImGui::Button("gravity")) {
             c.f_external.y = -9.8f;
         }
-        if (ImGui::Button("reset")) {
+        if (ImGui::Button("reset external forces")) {
             c.f_external = vec3(0,0,0);
         }
-        
+        if (ImGui::Button("Drop")) {
+            RigidBody rb;
+            rigidBodies.push_back(rb);
+        }
         ImGui::End();
 
         // Rendering
         ImGui::Render();
 
-        glClearColor(0.529f, 0.808f, 0.922f, 1.0f);
+        //glClearColor(0.529f, 0.808f, 0.922f, 1.0f);
+        glClearColor(0, 0, 0, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
@@ -187,15 +195,22 @@ int main()
         lightingShader.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
-        lightingShader.setVec3("color", vec3(1.0f, 0.0f, 0.0f));
         model = mat4(1.0f);
         model = translate(model, vec3(0, -2, 0));
+        model = scale(model, vec3(3, 3, 3));
+        lightingShader.setMat4("model", model);
+        lightingShader.setVec3("color", vec3(0.0f, 1.0f, 0.0f));
+        //rb.draw();
+
+        lightingShader.setVec3("color", vec3(1.0f, 0.0f, 0.0f));
+        model = mat4(1.0f);
+        model = translate(model, vec3(0, 0, 0));
         lightingShader.setMat4("model", model);
 
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glLineWidth(2);
         c.draw();
-        c.update(deltaTime);
+        c.update(deltaTime, rigidBodies);
       
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -261,23 +276,23 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 {
-    if (isDragging)
+    float xpos = static_cast<float>(xposIn);
+    float ypos = static_cast<float>(yposIn);
+
+    if (firstMouse)
     {
-        float xpos = static_cast<float>(xposIn);
-        float ypos = static_cast<float>(yposIn);
-
-        if (firstMouse)
-        {
-            lastX = xpos;
-            lastY = ypos;
-            firstMouse = false;
-        }
-
-        float xoffset = xpos - lastX;
-        float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
         lastX = xpos;
         lastY = ypos;
+        firstMouse = false;
+    }
 
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+    lastX = xpos;
+    lastY = ypos;
+    if (isDragging)
+    {
+        
         double mouseX, mouseY;
         glfwGetCursorPos(window, &mouseX, &mouseY);
         float depth;
@@ -287,12 +302,14 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
         //c.f_external.x = std::min(xoffset,2.0f);
         if (c.grabIndex != -1)
         {
-            c.particles[c.grabIndex].x = Pos;
-            c.particles[c.grabIndex].p = Pos;
+            c.particles[c.grabIndex].x += 0.01f * vec3(xoffset, yoffset,0);
+            c.particles[c.grabIndex].p += 0.01f * vec3(xoffset, yoffset, 0);
         }
         else
             c.grab(Pos);
     }
+    if (isDraggingCamera)
+        camera.ProcessMouseMovement(xoffset, yoffset);
     
     
 }
@@ -302,19 +319,26 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
             isDragging = true;
         }
         else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
-            double mouseX, mouseY;
+            /*double mouseX, mouseY;
             glfwGetCursorPos(window, &mouseX, &mouseY);
-            std::cout << "Right mouse button pressed at (" << mouseX << ", " << mouseY << ")\n";
+            std::cout << "Right mouse button pressed at (" << mouseX << ", " << mouseY << ")\n";*/
+            isDraggingCamera = true;
         }
     }
     else if (action == GLFW_RELEASE)
     {
-        isDragging = false;
-        if (c.grabIndex != -1)
-        {
-            c.particles[c.grabIndex].inverseMass = c.grabPointInvereMass;
-            c.grabIndex = -1;
+        if (button == GLFW_MOUSE_BUTTON_LEFT) {
+            isDragging = false;
+            if (c.grabIndex != -1)
+            {
+                c.particles[c.grabIndex].inverseMass = c.grabPointInvereMass;
+                c.grabIndex = -1;
+            }
         }
+        else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+            isDraggingCamera = false;
+        }
+        
     }
 }
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called

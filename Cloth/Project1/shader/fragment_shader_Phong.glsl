@@ -20,6 +20,6 @@ void main()
 
     float specular = pow(max(0.0, dot(norm,reflectDir)),32);
 
-    FragColor = vec4(diffuse * color + specular*color, 1.0f);
+    FragColor = vec4(diffuse * color + specular * color + 0.1f * vec3(0.7f, 0.9f, 1.0f), 1.0f);
 
 } 

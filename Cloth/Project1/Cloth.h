@@ -6,10 +6,12 @@
 #include <GLFW/glfw3.h>
 #include <vector>
 #include <set>
+#include <iostream>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include "rigidBody.h"
 
 using namespace glm;
 using namespace std;
@@ -61,17 +63,20 @@ public:
 	int substep;
 	int grabIndex;
 	int grabPointInvereMass;
+	float totalMass;
+	float k_damping;
 	Cloth(vec3 f_external);
-	void preSolve(float dt);
+	void preSolve(float dt, vector<RigidBody>& rigidBodies);
 	void solve(float dt);
 	void solveEdges(float dt);
 	void solveBending(float dt);
 	void postSolve(float dt);
-	void update(float dt);
+	void update(float dt, vector<RigidBody>& rigidBodies);
 	void draw();
 	void addEdge(triangle t);
 	float calculatePhi(edge e,int triangleIndex);
 	void grab(vec3 pos);
+	void handleCollision(vec3& p,vector<RigidBody>& rigidBodies);
 };
 
 

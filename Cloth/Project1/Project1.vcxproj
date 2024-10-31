@@ -136,10 +136,12 @@
     <ClCompile Include="..\..\glad\src\glad.c" />
     <ClCompile Include="Cloth.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="rigidBody.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h" />
     <ClInclude Include="Cloth.h" />
+    <ClInclude Include="rigidBody.h" />
     <ClInclude Include="shader.h" />
   </ItemGroup>
   <ItemGroup>

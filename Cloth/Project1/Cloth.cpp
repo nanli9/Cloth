@@ -10,15 +10,15 @@ Cloth::Cloth(vec3 f_external)
 	stretchCompliance = 0.001f;
 	bendCompliance = 0.001f;
 	grabIndex = -1;
+	totalMass = 0;
+	k_damping = 0.9f;
 	for (int j = 0; j < height; j++)
 	{
 		for (int i = 0; i < width; i++)
 		{
 			particle p;
 			p.inverseMass = 0.0f;
-			/*if (j == height - 1 && (i == 0 || i == width - 1))
-				p.inverseMass = 0;*/
-			p.p = vec3(0.1 * i, 0.1 * j, 0);
+			p.p = vec3(0.1 * i, 0, 0.1 * j);
 			p.x = p.p;
 			p.v = vec3(0, 0, 0);
 			particles.push_back(p);
@@ -39,7 +39,7 @@ Cloth::Cloth(vec3 f_external)
 			p1 = particles[t1.indices[0]].x;
 			p2 = particles[t1.indices[1]].x;
 			p3 = particles[t1.indices[2]].x;
-			float mass = 1.0 /(0.5 * length(cross(p1 - p2, p1 - p3))) / 3;
+			float mass = 1.0 / (0.5 * length(cross(p1 - p2, p1 - p3))) / 3;
 			particles[t1.indices[0]].inverseMass += mass;
 			particles[t1.indices[1]].inverseMass += mass;
 			particles[t1.indices[2]].inverseMass += mass;
@@ -63,8 +63,14 @@ Cloth::Cloth(vec3 f_external)
 			addEdge(t2);
 		}
 	}
+	for (auto& p : particles)
+		totalMass += 1.0f / p.inverseMass;
 	particles[width * height - 1].inverseMass = 0.0;
 	particles[width * (height-1)].inverseMass = 0.0;
+	particles[0].inverseMass = 0.0;
+	particles[width-1].inverseMass = 0.0;
+
+	//particles[width * (height - 1) / 2].inverseMass = 0.0;
 
 }
 float Cloth::calculatePhi(edge e, int triangleIndex)
@@ -222,16 +228,48 @@ void Cloth::addEdge(triangle t)
 		neighbors[e->triangleIndex].push_back(n);
 	}
 }
-void Cloth::preSolve(float dt)
+void Cloth::preSolve(float dt, vector<RigidBody>& rigidBodies)
 {
-	int index = -1;
+	vec3 xcm(0,0,0), vcm(0, 0, 0),L(0,0,0);
+	mat3 I(0.0f);
 	for (auto& p : particles)
 	{
-		index++;
+		if (p.inverseMass == 0)
+			continue;
+		xcm += p.x / p.inverseMass;
+		vcm += p.v / p.inverseMass;
+	}
+	xcm /= totalMass;
+	vcm /= totalMass;
+	for (auto& p : particles)
+	{
+		if (p.inverseMass == 0)
+			continue;
+		vec3 r = p.x - xcm;
+		L += cross(r, p.v / p.inverseMass);
+		mat3 r_star(0.0f);
+		r_star[1][0] = -r.z;
+		r_star[2][0] = r.y;
+		r_star[0][1] = r.z;
+		r_star[2][1] = -r.x;
+		r_star[0][2] = -r.y;
+		r_star[1][2] = r.x;
+		I += r_star * transpose(r_star) * (1.0f / p.inverseMass);
+	}
+	vec3 omega = inverse(I) * L;
+	for (auto& p : particles)
+	{
 		if (p.inverseMass == 0)
 			continue;
 		p.p = p.x;
-		p.x += p.v * dt + p.inverseMass * dt * dt * f_external * 0.1f;
+		p.v += p.inverseMass * dt * f_external * 0.1f;
+		//damping
+		vec3 delta_v = vcm + cross(omega, p.x - xcm) - p.v;
+		p.v += k_damping * delta_v;
+		p.x += p.v * dt;
+		if (p.x.y + 2.0f <= 1e-4)
+			p.x.y = -2.0f;
+		handleCollision(p.x, rigidBodies);
 	}
 }
 
@@ -297,12 +335,12 @@ void Cloth::postSolve(float dt)
 }
 
 
-void Cloth::update(float dt)
+void Cloth::update(float dt, vector<RigidBody>& rigidBodies)
 {
 	float sub_dt = dt / substep;
 	for (int i = 0; i < substep; i++)
 	{
-		preSolve(sub_dt);
+		preSolve(sub_dt, rigidBodies);
 		solve(sub_dt);
 		postSolve(sub_dt);
 	}
@@ -346,7 +384,6 @@ void Cloth::draw()
 	glBindVertexArray(0);
 
 }
-#include <iostream>
 void Cloth::grab(vec3 pos)
 {
 	float d = 0.1;
@@ -364,9 +401,20 @@ void Cloth::grab(vec3 pos)
 	grabIndex = index;
 	if (grabIndex != -1)
 	{
-		//cout << pos.x << " " << pos.y << endl;
 		cout << grabIndex << endl;
 		grabPointInvereMass = particles[grabIndex].inverseMass;
 		particles[grabIndex].inverseMass = 0.0f;
 	}
+}
+void Cloth::handleCollision(vec3& p, vector<RigidBody>& rigidBodies)
+{
+	vec3 center = vec3(1.5,-1,2);
+	float r = 1;
+	vec3 v1 = p - center;
+	if (dot(v1, v1) <= r * r)
+	{
+		v1 = r * normalize(v1);
+		p = v1 + center;
+	}
+
 }
