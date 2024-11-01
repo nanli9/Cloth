@@ -137,12 +137,14 @@
     <ClCompile Include="Cloth.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="rigidBody.cpp" />
+    <ClCompile Include="spatialHash.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h" />
     <ClInclude Include="Cloth.h" />
     <ClInclude Include="rigidBody.h" />
     <ClInclude Include="shader.h" />
+    <ClInclude Include="spatialHash.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shader\fragment_shader_Phong.glsl" />

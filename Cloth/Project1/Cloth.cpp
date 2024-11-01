@@ -354,6 +354,9 @@ void Cloth::draw()
 		vertices[6 * i] = particles[i].x.x;
 		vertices[6 * i + 1] = particles[i].x.y;
 		vertices[6 * i + 2] = particles[i].x.z;
+		vertices[6 * i + 3] = 0.0f;
+		vertices[6 * i + 4] = 0.0f;
+		vertices[6 * i + 5] = 0.0f;
 	}
 	int* indices = new int[triangles.size() * 3];
 	for (int i = 0; i < triangles.size(); i++)
@@ -365,17 +368,17 @@ void Cloth::draw()
 		vec3 v2 = particles[indices[3 * i]].x - particles[indices[3 * i + 2]].x;
 		vec3 n = normalize(cross(v2, v1));
 
-		vertices[6 * indices[3 * i] + 3] = n.x;
-		vertices[6 * indices[3 * i] + 4] = n.y;
-		vertices[6 * indices[3 * i] + 5] = n.z;
+		vertices[6 * indices[3 * i] + 3] += n.x;
+		vertices[6 * indices[3 * i] + 4] += n.y;
+		vertices[6 * indices[3 * i] + 5] += n.z;
 
-		vertices[6 * indices[3 * i + 1] + 3] = n.x;
-		vertices[6 * indices[3 * i + 1] + 4] = n.y;
-		vertices[6 * indices[3 * i + 1] + 5] = n.z;
+		vertices[6 * indices[3 * i + 1] + 3] += n.x;
+		vertices[6 * indices[3 * i + 1] + 4] += n.y;
+		vertices[6 * indices[3 * i + 1] + 5] += n.z;
 
-		vertices[6 * indices[3 * i + 2] + 3] = n.x;
-		vertices[6 * indices[3 * i + 2] + 4] = n.y;
-		vertices[6 * indices[3 * i + 2] + 5] = n.z;
+		vertices[6 * indices[3 * i + 2] + 3] += n.x;
+		vertices[6 * indices[3 * i + 2] + 4] += n.y;
+		vertices[6 * indices[3 * i + 2] + 5] += n.z;
 	}
 
 	glGenVertexArrays(1, &VAO);

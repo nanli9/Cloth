@@ -27,7 +27,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
 vec3 unProject(int mouseX, int mouseY, float depth);
-
+mat4 shadowProjection(float a, float b, float c, float d);
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
@@ -108,13 +108,13 @@ int main()
 
     float planeVertices[] = {
         // positions          // texture Coords 
-         5.0f, -0.5f,  5.0f,  0.0f, 1.0f,0.0f,
-        -5.0f, -0.5f,  5.0f,  0.0f, 1.0f,0.0f,
-        -5.0f, -0.5f, -5.0f,  0.0f, 1.0f,0.0f,
+         5.0f, 0.0f,  5.0f,  0.0f, 1.0f,0.0f,
+        -5.0f, -0.0f,  5.0f,  0.0f, 1.0f,0.0f,
+        -5.0f, -0.0f, -5.0f,  0.0f, 1.0f,0.0f,
 
-         5.0f, -0.5f,  5.0f,  0.0f, 1.0f,0.0f,
-        -5.0f, -0.5f, -5.0f,  0.0f, 1.0f,0.0f,
-         5.0f, -0.5f, -5.0f,  0.0f, 1.0f,0.0f,
+         5.0f, -0.0f,  5.0f,  0.0f, 1.0f,0.0f,
+        -5.0f, -0.0f, -5.0f,  0.0f, 1.0f,0.0f,
+         5.0f, -0.0f, -5.0f,  0.0f, 1.0f,0.0f,
     };
 
     //create VAO
@@ -181,7 +181,7 @@ int main()
         mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         mat4 view = camera.GetViewMatrix();
         mat4 model = mat4(1.0f);
-        model = translate(model, vec3(0,-2.5,0));
+        model = translate(model, vec3(0,-3,0));
         model = scale(model, vec3(20, 20, 20));
         lightingShader.setMat4("projection", projection);
         lightingShader.setMat4("view", view);
@@ -190,28 +190,35 @@ int main()
         lightingShader.setVec3("eye", camera.Position);
         lightingShader.setVec3("color", vec3(0.827f, 0.827f, 0.827f));
 
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         glBindVertexArray(planeVAO);
         lightingShader.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
-        model = mat4(1.0f);
+        /*model = mat4(1.0f);
         model = translate(model, vec3(0, -2, 0));
         model = scale(model, vec3(3, 3, 3));
-        lightingShader.setMat4("model", model);
+        lightingShader.setMat4("model", model);*/
         lightingShader.setVec3("color", vec3(0.0f, 1.0f, 0.0f));
         //rb.draw();
+        mat4 shadowMatrix = shadowProjection(0,1,0,2.9);
+
 
         lightingShader.setVec3("color", vec3(1.0f, 0.0f, 0.0f));
         model = mat4(1.0f);
         model = translate(model, vec3(0, 0, 0));
         lightingShader.setMat4("model", model);
 
-        //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glLineWidth(2);
         c.draw();
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+        lightingShader.setMat4("model", shadowMatrix);
+        lightingShader.setInt("shadow", 1);
+        c.draw();
+        lightingShader.setInt("shadow", 0);
         c.update(deltaTime, rigidBodies);
-      
+
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -233,7 +240,34 @@ int main()
     return 0;
 }
 
+mat4 shadowProjection(float a, float b, float c, float d)
+{
+    mat4 M;
+    vec4 L = vec4(lightPos, 1.0);
+    float lambda = dot(L, vec4(a,b,c,d));
+    //first row
+    M[0][0] = lambda - a * lightPos.x;
+    M[1][0] = -a * lightPos.y;
+    M[2][0] = -a * lightPos.z;
+    M[3][0] = -a;
+    //second row
+    M[0][1] = -b * lightPos.x;
+    M[1][1] = lambda - b * lightPos.y;
+    M[2][1] = -b * lightPos.z;
+    M[3][1] = -b;
+    //third row
+    M[0][2] = -c * lightPos.x;
+    M[1][2] = -c * lightPos.y;
+    M[2][2] = lambda - c * lightPos.z;
+    M[3][2] = -c;
+    //fourth row
+    M[0][3] = -d * lightPos.x;
+    M[1][3] = -d * lightPos.y;
+    M[2][3] = -d * lightPos.z;
+    M[3][3] = lambda - d;
 
+    return transpose(M);
+}
 
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
