@@ -12,6 +12,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include "rigidBody.h"
+#include "spatialHash.h"
+#include "Shader.h"
 
 using namespace glm;
 using namespace std;
@@ -22,7 +24,7 @@ struct particle
 	vec3 p; //previos pos
 	vec3 x; //cur pos
 	float inverseMass;
-	//bool pinned;
+	vec3 restPos;
 };
 struct edge
 {
@@ -52,11 +54,14 @@ struct triangle
 class Cloth
 {
 public:
+	spatialHash* hash;
 	vector<particle> particles;
 	vector<triangle> triangles;
 	vector<vector<neighbor>> neighbors;
+	float pinnedParticleInverseMass[4];
 	float bendCompliance;
 	float stretchCompliance;
+	bool lineDisplay;
 	set<edge> edges;
 	int height, width;
 	vec3 f_external;
@@ -65,6 +70,7 @@ public:
 	int grabPointInvereMass;
 	float totalMass;
 	float k_damping;
+	bool pinned;
 	Cloth(vec3 f_external);
 	void preSolve(float dt, vector<RigidBody>& rigidBodies);
 	void solve(float dt);
@@ -72,11 +78,13 @@ public:
 	void solveBending(float dt);
 	void postSolve(float dt);
 	void update(float dt, vector<RigidBody>& rigidBodies);
-	void draw();
+	void draw(const Shader& shader, mat4& shadowMatrix);
 	void addEdge(triangle t);
 	float calculatePhi(edge e,int triangleIndex);
 	void grab(vec3 pos);
 	void handleCollision(vec3& p,vector<RigidBody>& rigidBodies);
+	void selfCollision(float dt);
+	void reset();
 private:
 	GLuint VAO, VBO, EBO;
 };

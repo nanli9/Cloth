@@ -165,9 +165,14 @@ int main()
         if (ImGui::Button("reset external forces")) {
             c.f_external = vec3(0,0,0);
         }
-        if (ImGui::Button("Drop")) {
-            RigidBody rb;
-            rigidBodies.push_back(rb);
+        if (ImGui::Button("reset")) {
+            c.reset();
+        }
+        if (ImGui::Button("pin")) {
+            c.pinned = !c.pinned;
+        }
+        if (ImGui::Button("Line Mode")) {
+            c.lineDisplay = !c.lineDisplay;
         }
         ImGui::End();
 
@@ -197,26 +202,18 @@ int main()
         /*model = mat4(1.0f);
         model = translate(model, vec3(0, -2, 0));
         model = scale(model, vec3(3, 3, 3));
-        lightingShader.setMat4("model", model);*/
+        lightingShader.setMat4("model", model);
         lightingShader.setVec3("color", vec3(0.0f, 1.0f, 0.0f));
-        //rb.draw();
+        for(auto& r: rigidBodies)
+            r.draw();*/
         mat4 shadowMatrix = shadowProjection(0,1,0,2.9);
-
 
         lightingShader.setVec3("color", vec3(1.0f, 0.0f, 0.0f));
         model = mat4(1.0f);
         model = translate(model, vec3(0, 0, 0));
         lightingShader.setMat4("model", model);
 
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        glLineWidth(2);
-        c.draw();
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-        lightingShader.setMat4("model", shadowMatrix);
-        lightingShader.setInt("shadow", 1);
-        c.draw();
-        lightingShader.setInt("shadow", 0);
+        c.draw(lightingShader, shadowMatrix);
         c.update(deltaTime, rigidBodies);
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
