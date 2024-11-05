@@ -71,6 +71,7 @@ public:
 	float totalMass;
 	float k_damping;
 	bool pinned;
+	bool handleSelfCollision;
 	Cloth(vec3 f_external);
 	void preSolve(float dt, vector<RigidBody>& rigidBodies);
 	void solve(float dt);

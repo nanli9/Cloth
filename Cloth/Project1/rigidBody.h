@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 #include <vector>
 #include <set>
+#include "shader.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -36,11 +37,13 @@ class RigidBody
 public:
 	Y y_t;
 	float mass;
-	unsigned int VBO, cubeVAO;
-	vector<vec3> vertices;
+	vec3 Pos;
+	unsigned int VBO, VAO, EBO;
+	vector<float> vertices;
+	vector<int> indices;
 	RigidBody();
 	RigidBody(vec3 x, mat3 R, vec3 P, vec3 L,float mass);
-	void draw();
+	void draw(Shader& shader, mat4 shadowMatrix);
 
 
 };

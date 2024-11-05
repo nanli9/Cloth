@@ -7,6 +7,7 @@ uniform vec3 lightPos;
 uniform vec3 eye;
 uniform vec3 color;
 uniform int shadow;
+uniform int backFace;
 
 out vec4 FragColor;
 
@@ -16,7 +17,11 @@ void main()
         FragColor = vec4(0.0f, 0.0f, 0.0f, 1.0f);
     else
     {
-        vec3 norm = normalize(Normal);
+        vec3 norm;
+        if(backFace==0)
+            norm = normalize(Normal);
+        else
+            norm = -normalize(Normal);
         vec3 lightDir = normalize(lightPos-FragPos);
         float diffuse = max(dot(norm,lightDir),0.0);
 

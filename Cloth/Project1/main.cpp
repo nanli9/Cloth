@@ -128,8 +128,8 @@ int main()
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-
-    
+    RigidBody r;
+    rigidBodies.push_back(r);
 
     lightingShader.use();
     // render loop
@@ -152,8 +152,8 @@ int main()
         ImGui::NewFrame();
 
         ImGui::Begin("Cloth Parameters");
-        ImGui::SliderFloat("Stretch", &c.stretchCompliance, 0, 0.05f);
-        ImGui::SliderFloat("Bend", &c.bendCompliance, 0, 0.01f);
+        ImGui::SliderFloat("Stretch", &c.stretchCompliance, 0, 0.1f);
+        ImGui::SliderFloat("Bend", &c.bendCompliance, 0, 0.1f);
         ImGui::SliderFloat("K_damping", &c.k_damping, 0.0, 1.0f);
         if (ImGui::Button("Wind")) {
             c.f_external.x = -5.0f;
@@ -174,6 +174,9 @@ int main()
         if (ImGui::Button("Line Mode")) {
             c.lineDisplay = !c.lineDisplay;
         }
+        if (ImGui::Button("self-collision")) {
+            c.handleSelfCollision = !c.handleSelfCollision;
+        }
         ImGui::End();
 
         // Rendering
@@ -186,7 +189,7 @@ int main()
         mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         mat4 view = camera.GetViewMatrix();
         mat4 model = mat4(1.0f);
-        model = translate(model, vec3(0,-3,0));
+        model = translate(model, vec3(0,-30,0));
         model = scale(model, vec3(20, 20, 20));
         lightingShader.setMat4("projection", projection);
         lightingShader.setMat4("view", view);
@@ -198,23 +201,26 @@ int main()
         glBindVertexArray(planeVAO);
         lightingShader.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindVertexArray(0);
 
-        /*model = mat4(1.0f);
-        model = translate(model, vec3(0, -2, 0));
-        model = scale(model, vec3(3, 3, 3));
+        mat4 shadowMatrix = shadowProjection(0, 1, 0, 2.9);
+
+        model = mat4(1.0f);
+        /*model = translate(model, vec3(2, -1, 2));
+        model = scale(model, vec3(1, 1, 1));*/
         lightingShader.setMat4("model", model);
         lightingShader.setVec3("color", vec3(0.0f, 1.0f, 0.0f));
-        for(auto& r: rigidBodies)
-            r.draw();*/
-        mat4 shadowMatrix = shadowProjection(0,1,0,2.9);
 
-        lightingShader.setVec3("color", vec3(1.0f, 0.0f, 0.0f));
+        for(auto& r: rigidBodies)
+            r.draw(lightingShader, shadowMatrix);
+
+        
         model = mat4(1.0f);
         model = translate(model, vec3(0, 0, 0));
         lightingShader.setMat4("model", model);
 
         c.draw(lightingShader, shadowMatrix);
-        c.update(deltaTime, rigidBodies);
+        c.update(std::min(deltaTime,0.03f), rigidBodies);
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 

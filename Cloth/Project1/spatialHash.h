@@ -20,7 +20,7 @@ public:
 	vector<vector<int>> table;
 	int querySize;
 	spatialHash(int numOfObjects,float spacing);
-	int hashCoords(int x, int y, int z);
+	int hashCoords(long long x, long long y, long long z);
 	void query(vec3 pos, float d,int particleIndex);
 	void insert(const vec3 p, int index);
 	void clean();

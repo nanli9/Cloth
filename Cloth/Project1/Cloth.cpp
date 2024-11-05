@@ -3,7 +3,7 @@
 Cloth::Cloth(vec3 f_external)
 {
 	width = 40;
-	height = 50;
+	height = 40;
 	this->f_external = f_external;
 	substep = 5;
 	neighbors.resize((width - 1) * (height - 1) * 2);
@@ -11,7 +11,7 @@ Cloth::Cloth(vec3 f_external)
 	bendCompliance = 0.001f;
 	grabIndex = -1;
 	totalMass = 0;
-	k_damping = 0.0f;
+	k_damping = 0.1f;
 	lineDisplay = false;
 	pinned = false;
 	for (int j = 0; j < height; j++)
@@ -20,7 +20,7 @@ Cloth::Cloth(vec3 f_external)
 		{
 			particle p;
 			p.inverseMass = 0.0f;
-			p.p = vec3(0.1 * i, 0 ,0.1 * j);
+			p.p = vec3(0.1 * i, 0, 0.1 * j);
 			p.restPos = p.p;
 			p.x = p.p;
 			p.v = vec3(0, 0, 0);
@@ -70,8 +70,8 @@ Cloth::Cloth(vec3 f_external)
 		totalMass += 1.0f / p.inverseMass;
 	
 
-	this->hash = new spatialHash(particles.size(), 0.1f);
-	
+	this->hash = new spatialHash(particles.size(), 0.05f);
+	this->handleSelfCollision = false;
 	pinnedParticleInverseMass[0] = particles[width * height - 1].inverseMass;
 	pinnedParticleInverseMass[1] = particles[width * (height - 1)].inverseMass;
 	pinnedParticleInverseMass[2] = particles[0].inverseMass;
@@ -266,16 +266,16 @@ void Cloth::preSolve(float dt, vector<RigidBody>& rigidBodies)
 		if (p.inverseMass == 0)
 			continue;
 		p.p = p.x;
-		p.v += p.inverseMass * dt * f_external * 0.1f;
+		p.v += p.inverseMass * dt * f_external * 0.01f;
 		//damping
 		vec3 delta_v = vcm + cross(omega, p.x - xcm) - p.v;
 		p.v += k_damping * delta_v;
 		p.x += p.v * dt;
-		if (p.x.y <= -2.0f + 0.5 * 0.01)
+		if (p.x.y <= -2.0f + 0.5 * 0.05f)
 		{
 			vec3 v = (p.x - p.p);
 			p.x -= v;
-			p.x.y = -2.0f + 0.5 * 0.01;
+			p.x.y = -2.0f + 0.5 * 0.05f;
 
 		}
 		handleCollision(p.x, rigidBodies);
@@ -333,24 +333,40 @@ void Cloth::solveBending(float dt)
 }
 void Cloth::selfCollision(float dt)
 {
+	hash->clean();
 	for (int i = 0; i < particles.size(); i++)
 	{
-		float d = 0.0f;
-		hash->query(particles[i].x, 0.01 ,i);
+		//hash->table.insert(pair<vec3, int>(particles[i].x,i));
+		hash->insert(particles[i].x, i);
+	}
+
+	for (int i = 0; i < particles.size(); i++)
+	{
+		float d = 1.0f;
+		hash->query(particles[i].x, 0.05f ,i);
 		int x = hash->querySize;
 		for (int j = 0; j < hash->querySize; j++)
 		{
 			int index_1 = i;
 			int index_2 = hash->queryIndices[j];
-
-			vec3 p = particles[index_1].x - particles[index_2].x;
+			vec3 p = particles[index_1].p - particles[index_2].p;
+			float d2 = dot(p, p);
 			vec3 p_0 = particles[index_1].restPos - particles[index_2].restPos;
 			float restLen2 = dot(p_0, p_0);
-			if (dot(p, p) <= std::min(0.0001f, restLen2))
+			if (d2 < std::min(0.0025f, restLen2))
 			{
-				/*float l = sqrt(dot(p, p));
-				particles[index_1].x -= 0.5f * p * (0.01f - l) / l;
-				particles[index_2].x += 0.5f * p * (0.01f - l) / l;*/
+				float l = sqrt(d2);
+				/*particles[index_1].x -= 1 * 0.5f * p * (0.05f - l) / l;
+				particles[index_2].x += 1 * 0.5f * p * (0.05f - l) / l;*/
+
+				float w1 = particles[index_1].inverseMass;
+				float w2 = particles[index_2].inverseMass;
+				float w = w1 + w2;
+				float C = l   - 0.05f;
+				float s = -C / (w );
+				p = normalize(p);
+				particles[index_1].x += s * w1 * p;
+				particles[index_2].x -= s * w2 * p;
 
 				vec3 v1 = (particles[index_1].x - particles[index_1].p) / dt;
 				vec3 v2 = (particles[index_2].x - particles[index_2].p) / dt;
@@ -383,18 +399,13 @@ void Cloth::update(float dt, vector<RigidBody>& rigidBodies)
 		particles[0].inverseMass = 0.0;
 		particles[width-1].inverseMass = 0.0;
 	}
-	hash->clean();
-	for (int i = 0;i<particles.size();i++)
-	{
-		//hash->table.insert(pair<vec3, int>(particles[i].x,i));
-		hash->insert(particles[i].x, i);
-	}
 	float sub_dt = dt / substep;
 	for (int i = 0; i < substep; i++)
 	{
 		preSolve(sub_dt, rigidBodies);
 		solve(sub_dt);
-		selfCollision(sub_dt);
+		if(handleSelfCollision)
+			selfCollision(sub_dt);
 		postSolve(sub_dt);
 	}
 }
@@ -437,12 +448,6 @@ void Cloth::draw(const Shader& shader, mat4& shadowMatrix)
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-	
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * n, vertices, GL_DYNAMIC_DRAW);
@@ -451,13 +456,30 @@ void Cloth::draw(const Shader& shader, mat4& shadowMatrix)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(int) * triangles.size() * 3, indices, GL_DYNAMIC_DRAW);
 
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+
 	if (lineDisplay)
 	{
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		glLineWidth(2);
 	}
-
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_FRONT);
+	shader.setVec3("color", vec3(1.0f, 0.0f, 0.0f));
 	glDrawElements(GL_TRIANGLES, triangles.size() * 3, GL_UNSIGNED_INT, 0);
+
+	glCullFace(GL_BACK);
+
+	shader.setInt("backFace", 1);
+	shader.setVec3("color", vec3(1.0f, 0.65f, 0.0f));
+	glDrawElements(GL_TRIANGLES, triangles.size() * 3, GL_UNSIGNED_INT, 0);
+	shader.setInt("backFace", 0);
+
+	glDisable(GL_CULL_FACE);
 
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
@@ -492,7 +514,7 @@ void Cloth::grab(vec3 pos)
 }
 void Cloth::handleCollision(vec3& p, vector<RigidBody>& rigidBodies)
 {
-	vec3 center = vec3(1.5,-1,2);
+	vec3 center = vec3(2,-1,2);
 	float r = 1;
 	vec3 v1 = p - center;
 	if (dot(v1, v1) <= r * r)
@@ -505,6 +527,7 @@ void Cloth::handleCollision(vec3& p, vector<RigidBody>& rigidBodies)
 void Cloth::reset()
 {
 	pinned = false;
+	handleSelfCollision = false;
 	particles[width * height - 1].inverseMass = pinnedParticleInverseMass[0];
 	particles[width * (height - 1)].inverseMass = pinnedParticleInverseMass[1];
 	particles[0].inverseMass = pinnedParticleInverseMass[2];
